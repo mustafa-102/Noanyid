@@ -1,0 +1,180 @@
+package com.parser;
+
+import java.lang.reflect.*;
+import java.util.*;
+
+import com.*;
+import com.plugins.*;
+import com.parser.tools.*;
+import com.parser.tokens.*;
+
+public class MMMMParser extends BaseParser {
+    private final static MMMMInterface defaultPluginInterface = new MMMMInterface();
+    protected ArrayList<Method> loadedPluginsMethods = new ArrayList<>();
+    protected MMMMInterface currentPluginIstance = defaultPluginInterface;
+
+    public void parse(String readMMMMBuild) throws Exception {
+        try {
+            this.readMMMMBuild = readMMMMBuild;
+            Tokens.start(this);
+            while (nextFound()) {
+                if (command('.') == ID)
+                    return;
+            }
+            // currentPluginIstance.end();
+        } catch (Exception e) {
+            System.out.println("-----" + e);
+            System.out.println("Error " + e.getCause());
+        }
+    }
+
+    public Object command(char end) throws Exception {
+        skipComments();
+        String command = nextCommand();
+        if (command == null)
+            return ID;
+        // println("command: " + command);
+        skipComments();
+        switch (peek()) {
+            case '=':
+                // println("putting in: " + command);
+                skip();
+                Object[] values = nextValues(end);
+                variables.put(command, values);
+                return command;
+            default:
+                // throw new Exception("To here is good 1212 !==" + peek() + " " + index);
+                // return null values
+                return invokeMethod(command, nextValues(end));
+        }
+    }
+
+    public void skipWhitespace() {
+        while (nextFound() && isWhitespace(peek()))
+            skip();
+    }
+
+    // genarated by AI
+    // Not reviewed yet...
+    public void skipComments() {
+        while (true) {
+            skipWhitespace();
+            if (!nextFound() || !peek('#'))
+                break;
+            skip(); // skip '#'
+            while (nextFound() && !peek('\n'))
+                skip();
+            if (nextFound() && peek('\n'))
+                skip(); // skip '\n'
+        }
+    }
+
+    public String nextCommand() throws Exception {
+        skipComments();
+        drive();
+        if (!nextFound())
+            return null;
+        // throw new Exception("E: incompleted command exeprition \"");
+        if (isDigit())
+            throw new Exception("E: var must not start with num");
+        while (nextFound() && (isLetterOrDigit() || peek('_')))
+            skip();
+        return drived();
+    }
+
+    public String nextWord() throws Exception {
+        skipComments();
+        if (!nextFound())
+            throw new Exception("E: incompleted exeprition word\"");
+        drive();
+        if (isDigit())
+            throw new Exception("E: var must not start with num");
+        while (nextFound() && (isLetterOrDigit() || peek('_')))
+            skip();
+        return drived();
+    }
+
+    public void skipIf(char _char) {
+        if (nextFound() && peek(_char))
+            skip();
+    }
+
+    public Object[] nextValues(char end) throws Exception {
+        skipComments();
+
+        List<Object> objects = new ArrayList<>();
+        while (nextFound() && !peek(end)) {
+            switch (peek()) {
+                case '"':
+                    objects.add(StringToken.next());
+                    break;
+                // throw new Exception("To here is good");
+                case '\'':
+                    objects.add(CharToken.next().charValue());
+                    break;
+                case '(':
+                    skip();
+                    objects.add(nextValues(')'));
+                    break;
+                default:
+                    Object v = values(end);
+                    if (v == ID)
+                        return PCollections.flatten(objects.toArray(new Object[0]));
+                    else
+                        objects.add(v);
+            }
+            skipComments();
+        }
+        skipIf(end);
+        skipComments();
+        return PCollections.flatten(objects.toArray(new Object[0]));
+    }
+
+    public Object values(char end) throws Exception { // صلح الاسم
+        skipComments();
+        if (!nextFound())
+            return null;
+        char c = peek();
+        if (DigitToken.may())
+            return DigitToken.next();
+        else if (Character.isLetter(c) || c == '_') { // اتأكد انه حرف
+            String word = nextWord();
+            // println(":" + word + " ----- " + peek());
+            switch (word) {
+                case "true":
+                    return true;
+                case "false":
+                    return false;
+                case "no":
+                    return null;
+                default:
+                    if (variables.containsKey(word))
+                        return variables.get(word);
+                    else
+                        return invokeMethod(word, nextValues(end));
+            }
+        } else
+            return ID;
+    }
+
+    public Object invokeMethod(String methodUsedName, Object[] parameters) throws Exception {
+        for (Method method : loadedPluginsMethods) {
+            if (method.getName().equals(methodUsedName) && method.getParameterCount() == parameters.length) {
+                return method.invoke(currentPluginIstance, parameters);
+            }
+        }
+        return null;
+    }
+
+    public final void plugin(Plugin plugin) {
+        // usagePlugin = plugin;
+        if (plugin == null) {
+            return;
+        }
+        // TODO:
+        loadedPluginsMethods.clear();
+        loadedPluginsMethods.addAll(Arrays.asList(plugin.getMethodes()));
+        currentPluginIstance = plugin.getInstance();
+    }
+
+}
