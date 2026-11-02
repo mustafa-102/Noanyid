@@ -14,7 +14,7 @@ public class MMMMParser extends BaseParser {
     protected MMMMInterface currentPluginIstance = defaultPluginInterface;
 
     public void parse(String readMMMMBuild) throws Exception {
-        loadedPluginsMethods.addAll(currentPluginIstance.getClass().get);
+        // loadedPluginsMethods.addAll(currentPluginIstance.getClass().get);
         try {
             System.out.println("Hi");
 
