@@ -8,6 +8,7 @@ import com.parser.*;
 import static com.util.Utils.*;
 
 import com.sun.net.httpserver.HttpServer;
+
 import com.sun.net.httpserver.HttpExchange;
 
 import java.net.InetSocketAddress;
@@ -44,22 +45,26 @@ public class Main {
         safty(buildFile, true);
         getBuilderName();
         System.out.println(builderName + " work space: " + workspaceFolder);
+        System.out.println("Hello");
         currentBuildProjectHelpFile = new File(buildFile.getParent(), builderName.toLowerCase());
-        safty(currentBuildProjectHelpFile, true, SAFTY_MODE_MAKE);
+        safty(currentBuildProjectHelpFile, false, SAFTY_MODE_MAKE);
 
         try {
+            System.out.println("Hello again");
+
             parser.parse(UtilFile.read(buildFile));
+
         } catch (Exception e) {
             System.out.println("Parser E: " + e.getCause() + "\n");
         }
     }
 
     /// @return parser
-    public final static MMMMParser getParser(){
+    public final static MMMMParser getParser() {
         return parser;
     }
 
-    /// @return plugin path in the worksapce folder 
+    /// @return plugin path in the worksapce folder
     public static String plugin(String name, String pluginName) {
         plugin(null, null);
         return new File((File) (pluginsParent == null ? workspaceFolder : pluginsParent), "plugins/" + name + "/main")
@@ -67,8 +72,8 @@ public class Main {
 
     }
 
-    ///@return Current project that is going to be built
-    public static File getCurrentBuildProjec(){
+    /// @return Current project that is going to be built
+    public static File getCurrentBuildProjec() {
         return currentBuildProjectHelpFile.getParentFile();
     }
 
@@ -78,7 +83,7 @@ public class Main {
     }
 
     /// @return The name of this project this builder
-    public static String getBuilderName(){
+    public static String getBuilderName() {
         return builderName;
     }
 

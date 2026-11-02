@@ -10,13 +10,17 @@ import com.parser.tokens.*;
 
 public class MMMMParser extends BaseParser {
     private final static MMMMInterface defaultPluginInterface = new MMMMInterface();
-    protected ArrayList<Method> loadedPluginsMethods = new ArrayList<>();
+    protected final ArrayList<Method> loadedPluginsMethods = new ArrayList<>();
     protected MMMMInterface currentPluginIstance = defaultPluginInterface;
 
     public void parse(String readMMMMBuild) throws Exception {
+        loadedPluginsMethods.addAll(currentPluginIstance.getClass().get);
         try {
+            System.out.println("Hi");
+
             this.readMMMMBuild = readMMMMBuild;
             Tokens.start(this);
+
             while (nextFound()) {
                 if (command('.') == ID)
                     return;
@@ -158,6 +162,7 @@ public class MMMMParser extends BaseParser {
     }
 
     public Object invokeMethod(String methodUsedName, Object[] parameters) throws Exception {
+        System.out.println("invoke:" + methodUsedName);
         for (Method method : loadedPluginsMethods) {
             if (method.getName().equals(methodUsedName) && method.getParameterCount() == parameters.length) {
                 return method.invoke(currentPluginIstance, parameters);
