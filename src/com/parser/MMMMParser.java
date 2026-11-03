@@ -4,40 +4,37 @@ import java.lang.reflect.*;
 import java.util.*;
 
 import com.*;
-import com.plugins.*;
 import com.parser.tools.*;
 import com.parser.tokens.*;
 
 public class MMMMParser extends BaseParser {
-    private final static MMMMInterface defaultPluginInterface = new MMMMInterface();
+    private final static MMMMInterface BASE_INTERFACE = new MMMMInterface();
     protected final ArrayList<Method> loadedPluginsMethods = new ArrayList<>();
-    protected MMMMInterface currentPluginIstance = defaultPluginInterface;
+    protected MMMMInterface currentPluginIstance = null;
 
-    public void parse(String readMMMMBuild) throws Exception {
-        // loadedPluginsMethods.addAll(currentPluginIstance.getClass().get);
+    public void parse(String readMMMMBuild) {
+        reset();
         try {
-            System.out.println("Hi");
-
+            printlnDebug("Hi");
             this.readMMMMBuild = readMMMMBuild;
             Tokens.start(this);
 
             while (nextFound()) {
-                if (command('.') == ID)
+                if (command('.') == ID) {
                     return;
+                }
             }
-            // currentPluginIstance.end();
         } catch (Exception e) {
-            System.out.println("-----" + e);
-            System.out.println("Error " + e.getCause());
+            System.out.println(e  + " " + e.getCause());
         }
     }
 
     public Object command(char end) throws Exception {
         skipComments();
         String command = nextCommand();
-        if (command == null)
+        if (command == null) {
             return ID;
-        // println("command: " + command);
+        } // println("command: " + command);
         skipComments();
         switch (peek()) {
             case '=':
@@ -136,12 +133,13 @@ public class MMMMParser extends BaseParser {
 
     public Object values(char end) throws Exception { // صلح الاسم
         skipComments();
-        if (!nextFound())
+        if (!nextFound()) {
             return null;
+        }
         char c = peek();
-        if (DigitToken.may())
+        if (DigitToken.may()) {
             return DigitToken.next();
-        else if (Character.isLetter(c) || c == '_') { // اتأكد انه حرف
+        } else if (Character.isLetter(c) || c == '_') { // اتأكد انه حرف
             String word = nextWord();
             // println(":" + word + " ----- " + peek());
             switch (word) {
@@ -151,35 +149,48 @@ public class MMMMParser extends BaseParser {
                     return false;
                 case "no":
                     return null;
-                default:
-                    if (variables.containsKey(word))
+                default: {
+                    if (variables.containsKey(word)) {
                         return variables.get(word);
-                    else
+                    } else {
                         return invokeMethod(word, nextValues(end));
+                    }
+                }
             }
-        } else
+        } else {
             return ID;
+        }
     }
 
-    public Object invokeMethod(String methodUsedName, Object[] parameters) throws Exception {
-        System.out.println("invoke:" + methodUsedName);
+    public Object invokeMethod(String methodName, Object[] parameters) throws Exception {
+        printlnDebug("invoke:" + methodName);
         for (Method method : loadedPluginsMethods) {
-            if (method.getName().equals(methodUsedName) && method.getParameterCount() == parameters.length) {
+            if (method.getName().equals(methodName) && method.getParameterCount() == parameters.length) {
                 return method.invoke(currentPluginIstance, parameters);
             }
         }
-        return null;
+        throw new NoSuchMethodException(
+                "This method not found: " + methodName + "(params:" + Arrays.deepToString(parameters) + ")");
     }
 
-    public final void plugin(Plugin plugin) {
-        // usagePlugin = plugin;
+    private void printlnDebug(String msg) {
+
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        usePlugin(BASE_INTERFACE);
+    }
+
+    public final void usePlugin(MMMMInterface plugin) {
         if (plugin == null) {
-            return;
+            throw new NullPointerException("Parser use null plugin inteerface");
         }
-        // TODO:
+        // TODO>
         loadedPluginsMethods.clear();
-        loadedPluginsMethods.addAll(Arrays.asList(plugin.getMethodes()));
-        currentPluginIstance = plugin.getInstance();
+        loadedPluginsMethods.addAll(Arrays.asList(plugin.getClass().getMethods()));
+        currentPluginIstance = plugin;
     }
 
 }

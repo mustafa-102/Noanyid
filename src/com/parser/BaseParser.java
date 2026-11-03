@@ -70,4 +70,9 @@ public class BaseParser {
             throw new Exception("index out of bounds");
         return readMMMMBuild.substring(drive, index);
     }
+
+    public void reset(){
+        drive = index = 0;
+        readMMMMBuild = "";
+    }
 }

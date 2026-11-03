@@ -1,18 +1,14 @@
 package com;
 
 import java.util.*;
-import com.util.*;
 
-import com.plugins.*;
+import com.plugins.PluginConfigeration;
 
 import java.net.*;
-
 import java.io.File;
-import java.io.IOException;
+import java.lang.instrument.IllegalClassFormatException;
 
 public class MMMMInterface {
-    public final HashMap<String, Plugin> loadedPlugins = new HashMap<>();
-
     public MMMMInterface() {
     }
 
@@ -22,100 +18,78 @@ public class MMMMInterface {
 
     public final void load_use_plugin(String str) {
         load_plugin(str);
-        use_plugin(str);
+
+        // use_plugin(str);
     }
 
-    public final void use_plugin(String path) {
-        Utils.safty(path, false);
+    /*
+     * public final void use_plugin(String path) {
+     * Utils.safty(path, false);
+     * Plugin p = loadedPlugins.get(path);
+     * if (p != null) {
+     * Main.getParser().usePlugin(p);
+     * event("use");
+     * // TODO lon("using plugin: " + path);
+     * event("use");
+     * } else {
+     * throw new RuntimeException("Use inloaded plugin");
+     * }
+     * }
+     */
 
-        Plugin p = loadedPlugins.get(path);
-        if (p != null) {
-            Main.getParser().plugin(p);
-            event("use");
-            // TODO lon("using plugin: " + path);
-            event("use");
-        } else {
-            throw new RuntimeException("Use inloaded plugin");
-        }
-    }
-
-    public final void load_plugin(String path) {
-        File plugin = new File(path);
-        Utils.safty(plugin, false);
-
+    public final void load_plugin(String pluginConfigPath) {
+        PluginConfigeration pluginConfig = PluginConfigeration.instance(pluginConfigPath);
         List<URL> urls = new ArrayList<>();
 
-        File needsFile = new File(plugin, "needs.txt");
-        File needsDir = new File(plugin.getParentFile().getParentFile().getParentFile(), "needs");
-        
         try {
-            if (needsFile.exists() && needsDir.exists() && needsDir.isDirectory()) {
-                for (String line : UtilFile.read(needsFile).split("\\r?\\n")) {
-                    String name = line.trim();
-                    if (name.isEmpty() || name.startsWith("#"))
-                        continue; // تجاهل الفراغ والتعليقات
-
-                    // الشكل المتوقع: needs/<name>/<name>.jar
-                    File depJar = new File(new File(needsDir, name), name + ".jar");
-                    if (depJar.exists()) {
-                        urls.add(depJar.toURI().toURL());
-                        // lon(" + dep: " + depJar.getName());
-                    } else {
-                        // lon(" ! missing dep: " + depJar);
-                    }
-                }
+            for (File f : pluginConfig.getJarLibsList()) {
+                urls.add(f.toURI().toURL());
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        File jar = new File(plugin, "lib.jar");
-
-        try {
-            urls.add(jar.toURI().toURL());
+            urls.add(pluginConfig.getPluginJar().toURI().toURL());
         } catch (MalformedURLException e) {
             throw new RuntimeException("Error in convert jar to uri then to url " + e);
         }
 
-        String mainClassName;
         URLClassLoader ucl;
         try {
             ucl = new URLClassLoader(urls.toArray(new URL[0]), MMMMInterface.class.getClassLoader());
-            mainClassName = UtilFile.read(new File(plugin, "MainClass.txt")).trim();
         } catch (Exception e) {
             throw new RuntimeException("❌ [load plugin] Failed to prepare classloader: " + e, e);
         }
 
-        if (mainClassName == null || mainClassName.isEmpty() || ucl == null) {
-            throw new RuntimeException("❌ [load plugin] Unknown error: mainClass or ucl is null");
-        }
-
         try {
-            Plugin pluginInfo = new Plugin(mainClassName, ucl, plugin.getName(), this);
-
-            if (!MMMMInterface.class.isAssignableFrom(pluginInfo.getPluginClass())) {
-                throw new RuntimeException("❌ [load_plugin()] is not compatible to MMMMInterface");
-            }
+            MMMMInterface pluginInterface = getJarPluginIstance(ucl, pluginConfig.getInterfacePackage());
+            // if (!MMMMInterface.class.isAssignableFrom(pluginInfo.getPluginClass())) {
+            // throw new RuntimeException("❌ [load_plugin()] is not compatible to
+            // MMMMInterface");
+            // }
             event("loaded");
-            loadedPlugins.put(path, pluginInfo);
-            System.out.println("(Ok) " + jar + " -> Loaded successfully");
-        } catch (Throwable t) {
-            throw new RuntimeException("❌ [load_plugin()] Failed to load class: " + mainClassName, t);
+            completeLoadPlugin(pluginInterface);
+            System.out.println("(Ok) " + pluginConfig.getPluginJar() + " -> Loaded successfully");
+        } catch (Exception e) {
+            throw new RuntimeException("❌ [load---plugin()]" + e +"  "+ e.getCause());
         }
     }
 
-    public void install_plugin(String path) {
-        event("installing");
-        event("install failed");
-        event("installing done");
-    }
+    public void completeLoadPlugin(MMMMInterface pluginInterface) {
+        System.out.println("Plugin load");
 
-    // private String inThisPlugin(String name) {
-    // return MMMMWorkSpace + "/plugins" + "/" + name() + "/main" + "/" + name;
-    // }
+        Main.getParser().usePlugin(pluginInterface);
+    }
 
     public String project(String name) {
         return new File(Main.getCurrentBuildProjec(), name).getPath();
+    }
+
+    private MMMMInterface getJarPluginIstance(URLClassLoader ucl, String targetClass) throws Exception {
+        try {
+            MMMMInterface instance = Class.forName(targetClass, true, ucl).asSubclass(MMMMInterface.class)
+                    .getDeclaredConstructor().newInstance();
+            return instance;
+        } catch (Exception e) {
+            throw new IllegalClassFormatException(
+                    "Unable to load " + ucl + " from plugin as interface " + e.getCause());
+        }
     }
 
     public void sleep(int time) {
@@ -145,4 +119,33 @@ public class MMMMInterface {
         }
     }
 
+    // TODO
+    /*
+     * private void loadNeeds(File plugin, List<URL> urls) {
+     * File needsFile = new File(plugin, "needs.txt");
+     * File needsDir = new
+     * File(plugin.getParentFile().getParentFile().getParentFile(), "needs");
+     * 
+     * try {
+     * if (needsFile.exists() && needsDir.exists() && needsDir.isDirectory()) {
+     * for (String line : UtilFile.read(needsFile).split("\\r?\\n")) {
+     * String name = line.trim();
+     * if (name.isEmpty() || name.startsWith("#"))
+     * continue; // تجاهل الفراغ والتعليقات
+     * 
+     * // الشكل المتوقع: needs/<name>/<name>.jar
+     * File depJar = new File(new File(needsDir, name), name + ".jar");
+     * if (depJar.exists()) {
+     * urls.add(depJar.toURI().toURL());
+     * // lon(" + dep: " + depJar.getName());
+     * } else {
+     * // lon(" ! missing dep: " + depJar);
+     * }
+     * }
+     * }
+     * } catch (IOException e) {
+     * throw new RuntimeException(e);
+     * }
+     * }
+     */
 }

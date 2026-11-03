@@ -5,15 +5,11 @@ import java.io.*;
 import com.util.*;
 import com.parser.*;
 
-import static com.util.Utils.*;
+import com.sun.net.httpserver.*;
 
-import com.sun.net.httpserver.HttpServer;
-
-import com.sun.net.httpserver.HttpExchange;
-
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Executors;
+import java.net.*;
+import java.nio.charset.*;
+import java.util.concurrent.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,39 +33,29 @@ public class Main {
         } catch (Exception e) {
         }
         startServer(port);
+
         Thread.currentThread().join();
     }
 
     public static void build(String buildFilePath) {
         File buildFile = new File(buildFilePath);
-        safty(buildFile, true);
+        Utils.safty(buildFile, true);
         getBuilderName();
-        System.out.println(builderName + " work space: " + workspaceFolder);
-        System.out.println("Hello");
         currentBuildProjectHelpFile = new File(buildFile.getParent(), builderName.toLowerCase());
-        safty(currentBuildProjectHelpFile, false, SAFTY_MODE_MAKE);
+        Utils.safty(currentBuildProjectHelpFile, false, Utils.SAFTY_MODE_MAKE);
 
+        String buildCode;
         try {
-            System.out.println("Hello again");
-
-            parser.parse(UtilFile.read(buildFile));
-
-        } catch (Exception e) {
-            System.out.println("Parser E: " + e.getCause() + "\n");
+            buildCode = UtilFile.read(buildFile); 
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
+        parser.parse(buildCode);
     }
 
     /// @return parser
     public final static MMMMParser getParser() {
         return parser;
-    }
-
-    /// @return plugin path in the worksapce folder
-    public static String plugin(String name, String pluginName) {
-        plugin(null, null);
-        return new File((File) (pluginsParent == null ? workspaceFolder : pluginsParent), "plugins/" + name + "/main")
-                .toString();
-
     }
 
     /// @return Current project that is going to be built
@@ -88,30 +74,8 @@ public class Main {
     }
 
     // server secrion
-    static void startServer(int port) throws Exception {
+    private static void startServer(int port) throws Exception {
         server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
-
-        server.createContext("/hello", exchange -> {
-            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-
-            PrintStream originalOut = System.out;
-            try {
-                exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
-                exchange.sendResponseHeaders(200, 0);
-
-                OutputStream os = exchange.getResponseBody();
-                System.setOut(new PrintStream(os, true, StandardCharsets.UTF_8));
-
-                System.out.println("Hello from " + builderName);
-                System.out.println("you said: " + body);
-
-                System.out.flush();
-                os.close();
-            } finally {
-                System.setOut(originalOut);
-            }
-        });
-
         Runtime.getRuntime().addShutdownHook(new Thread(Main::shutdown, "shutdown-hook"));
 
         server.createContext("/stop", exchange -> {
@@ -160,8 +124,9 @@ public class Main {
     }
 
     static void shutdown() {
-        if (!stopped.compareAndSet(false, true))
+        if (!stopped.compareAndSet(false, true)) {
             return;
+        }
         System.out.println("Cleanup finished. Stopping serveasr...");
         if (server != null) {
             server.stop(0);
@@ -171,5 +136,4 @@ public class Main {
     static void send(HttpExchange ex, int code, String body) throws IOException {
         System.out.println("port");
     }
-
 }
