@@ -17,7 +17,13 @@ public class MMMMInterface {
     }
 
     public final void load_use_plugin(String str) {
-        load_plugin(str);
+        load_plugin(str, false);
+
+        // use_plugin(str);
+    }
+
+    public final void load_use_plugin_replace_installed(String str) {
+        load_plugin(str, true);
 
         // use_plugin(str);
     }
@@ -37,8 +43,8 @@ public class MMMMInterface {
      * }
      */
 
-    public final void load_plugin(String pluginConfigPath) {
-        PluginConfigeration pluginConfig = PluginConfigeration.instance(pluginConfigPath);
+    public final void load_plugin(String pluginConfigPath, boolean replaceInstalled) {
+        PluginConfigeration pluginConfig = PluginConfigeration.instance(pluginConfigPath, replaceInstalled);
         List<URL> urls = new ArrayList<>();
 
         try {
@@ -49,8 +55,7 @@ public class MMMMInterface {
         } catch (MalformedURLException e) {
             throw new RuntimeException("Error in convert jar to uri then to url " + e);
         }
-
-        URLClassLoader ucl;
+       URLClassLoader ucl;
         try {
             ucl = new URLClassLoader(urls.toArray(new URL[0]), MMMMInterface.class.getClassLoader());
         } catch (Exception e) {

@@ -20,10 +20,12 @@ public class PluginConfigeration {
     private File pluginJar;
     private ArrayList<File> jarLibsList;
     private File configFile;
+    private boolean replaceInstalled;
 
-    private PluginConfigeration(JSONObject config, File configFile) {
+    private PluginConfigeration(JSONObject config, File configFile, boolean replaceInstalled) {
         this.configFile = configFile;
         this.jarLibsList = new ArrayList<>();
+        this.replaceInstalled = replaceInstalled;
         pluginName = config.getString("name").trim();
         interfacePackage = config.getString("interfacePackage").trim();
         if (interfacePackage == null) {
@@ -105,7 +107,7 @@ public class PluginConfigeration {
         }
     }
 
-    public static PluginConfigeration instance(String configPath) {
+    public static PluginConfigeration instance(String configPath, boolean replaceInstalled) {
         File configFile = new File(configPath);
         JSONObject config = null;
         try {
@@ -113,11 +115,11 @@ public class PluginConfigeration {
         } catch (JSONException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
-            if (!configFile.exists() || !configFile.isFile()) {
+            if (!configFile.exists() || !configFile.isFile() && !replaceInstalled) {
                 try {
                     configFile = new File(SharedPathes.INSTALLED_PLUGINS, configPath + "/config.json");
                     config = new JSONObject(UtilFile.read(configFile));
-                    return new PluginConfigeration(config, configFile);
+                    return new PluginConfigeration(config, configFile, replaceInstalled);
                 } catch (JSONException e2) {
                     throw new RuntimeException(e2);
                 } catch (IOException e2) {
@@ -127,7 +129,7 @@ public class PluginConfigeration {
                 throw new RuntimeException(e);
             }
         }
-        return new PluginConfigeration(config, configFile);
+        return new PluginConfigeration(config, configFile, replaceInstalled);
     }
 
     private void install() {
@@ -150,7 +152,7 @@ public class PluginConfigeration {
     }
 
     public boolean isInstalled() {
-        return getInstallLocPath().exists();
+        return getInstallLocPath().exists() && !replaceInstalled;
     }
 
     public String getInterfacePackage() {

@@ -22,8 +22,6 @@ public class Main {
     private static File currentBuildProjectHelpFile;
 
     private static HttpServer server;
-    private static File pluginsParent = new File("/home/mustafa/private/NoAnyId/NoAnyId");
-
     private static final MMMMParser parser = new MMMMParser();
 
     public static void main(String[] args) throws Exception {
@@ -38,7 +36,12 @@ public class Main {
     }
 
     public static void build(String buildFilePath) {
-        File buildFile = new File(buildFilePath);
+        File buildFile;
+        try {
+            buildFile = new File(buildFilePath).getCanonicalFile();
+        } catch (IOException e) {
+            throw new RuntimeException("invald path" + buildFilePath);
+        }
         Utils.safty(buildFile, true);
         getBuilderName();
         currentBuildProjectHelpFile = new File(buildFile.getParent(), builderName.toLowerCase());

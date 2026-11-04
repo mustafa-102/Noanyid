@@ -25,7 +25,7 @@ public class MMMMParser extends BaseParser {
                 }
             }
         } catch (Exception e) {
-            System.out.println(e  + " " + e.getCause());
+            System.out.println(e + " " + e.getCause());
         }
     }
 
@@ -169,8 +169,15 @@ public class MMMMParser extends BaseParser {
                 return method.invoke(currentPluginIstance, parameters);
             }
         }
+        var temp = "";
+        for (Method m : loadedPluginsMethods) {
+            temp += m.getName() +
+                    "(params:" + Arrays.toString(parameters) + ",\n";
+        }
         throw new NoSuchMethodException(
-                "This method not found: " + methodName + "(params:" + Arrays.deepToString(parameters) + ")");
+                "This method not found: " + methodName +
+                        "(params:" + Arrays.deepToString(parameters) + ") find:\n\n" +
+                        (temp));
     }
 
     private void printlnDebug(String msg) {
