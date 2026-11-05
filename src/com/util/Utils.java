@@ -1,10 +1,10 @@
 package com.util;
 
-import java.io.*;
-import java.net.*;
-import java.security.*;
-
-import com.*;
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.security.CodeSource;
 
 public class Utils {
 
@@ -12,17 +12,26 @@ public class Utils {
     public final static int SAFTY_MODE_MAKE = 1;
 
     public static File getWorkspace() {
-        return getWorkSpace(Main.class);
+        return getWorkSpace(Utils.class);
     }
 
     private static File getWorkSpace(Class<?> clazz) {
         try {
             CodeSource codeSource = clazz.getProtectionDomain().getCodeSource();
-            File jarFile = new File(codeSource.getLocation().toURI());
-            return jarFile.getParentFile();
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-            return null;
+            if (codeSource == null || codeSource.getLocation() == null) {
+                // Running from IDE / no jar - fallback to user.dir
+                return new File(System.getProperty("user.dir")).getAbsoluteFile();
+            }
+            URL location = codeSource.getLocation();
+            File jarFile = new File(location.toURI());
+            // If it's a jar, parent is workspace. If it's a classes dir, use it.
+            if (jarFile.isFile()) {
+                return jarFile.getParentFile();
+            } else {
+                return jarFile;
+            }
+        } catch (URISyntaxException | IllegalArgumentException e) {
+            throw new RuntimeException("Cannot resolve workspace", e);
         }
     }
 
@@ -44,35 +53,55 @@ public class Utils {
 
     public static void safty(File file, boolean isFile, int saftyMode) {
         if (file == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("file is null");
         }
-        if (isFile && file.isDirectory()) {
-            throw new RuntimeException("Must be file: " + file);
+
+        // Normalize to absolute to avoid null parent problem
+        File absFile = file.getAbsoluteFile();
+
+        // 1. If exists -> validate type only
+        if (absFile.exists()) {
+            if (isFile && !absFile.isFile()) {
+                throw new RuntimeException("Must be file: " + absFile.getAbsolutePath());
+            }
+            if (!isFile && !absFile.isDirectory()) {
+                throw new RuntimeException("Must be dir: " + absFile.getAbsolutePath());
+            }
+            return;
         }
-        if (!isFile && file.isFile()) {
-            throw new RuntimeException("Must be dir : " + file);
+
+        // 2. Not exists
+        if (saftyMode == SAFTY_MODE_THROW) {
+            throw new RuntimeException("Not exists: " + absFile.getAbsolutePath());
         }
-        if (!file.exists()) {
-            switch (saftyMode) {
-                case SAFTY_MODE_MAKE:
-                    if(isFile)
-                    {
-                        if (!file.getParentFile().exists()) {
-                            file.getParentFile().mkdirs();
-                        }
-                        try {
-                            file.createNewFile();
-                        } catch (IOException e) {
-                            throw new RuntimeException("Write permission denited.");
-                        }
-                    }
-                    else
-                    {
-                        file.mkdirs();
-                    }
-                    break;
-                case SAFTY_MODE_THROW:
-                    throw new RuntimeException();
+
+        if (saftyMode != SAFTY_MODE_MAKE) {
+            throw new IllegalArgumentException("Unknown saftyMode: " + saftyMode);
+        }
+
+        // 3. MAKE mode
+        if (isFile) {
+            File parent = absFile.getParentFile();
+            if (parent != null && !parent.exists()) {
+                if (!parent.mkdirs() && !parent.exists()) {
+                    throw new RuntimeException("Cannot create parent dir: " + parent.getAbsolutePath());
+                }
+            }
+            // Parent exists but is a file -> cannot create file inside it
+            if (parent != null && parent.exists() && !parent.isDirectory()) {
+                throw new RuntimeException("Parent is not a directory: " + parent.getAbsolutePath());
+            }
+            try {
+                if (!absFile.createNewFile() && !absFile.exists()) {
+                    throw new RuntimeException("Cannot create file: " + absFile.getAbsolutePath());
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Cannot create file: " + absFile.getAbsolutePath() + " : " + e.getMessage(), e);
+            }
+        } else {
+            // Directory
+            if (!absFile.mkdirs() && !absFile.exists()) {
+                throw new RuntimeException("Cannot create dir: " + absFile.getAbsolutePath());
             }
         }
     }
