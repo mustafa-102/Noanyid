@@ -1,0 +1,1 @@
+NoAnyId is a modular build automation system powered by plugins, designed to automate development and build workflows. It features an extensible plugin architecture, including an Android APK build plugin, with support for adding custom build tools and workflows.
